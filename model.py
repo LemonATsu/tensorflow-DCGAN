@@ -4,9 +4,6 @@ from utils import *
 from tensorflow.contrib.layers import batch_norm, flatten
 from tensorflow.contrib.framework import arg_scope
 
-def lrelu(x, leak=0.2):
-    return tf.maximum(x, leak*x)
-
 def generator(z, img_size=64):
 
     l = linear(z, img_size*16*4*4, name='g_lin1')

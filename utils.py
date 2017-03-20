@@ -1,5 +1,8 @@
 import tensorflow as tf
 
+def lrelu(x, leak=0.2):
+    return tf.maximum(x, leak*x)
+
 def deconv2d(input_tensor, output_dim, k=5, s=2, stddev=.02, name='deconv2d'):
 
     with tf.variable_scope(name):
