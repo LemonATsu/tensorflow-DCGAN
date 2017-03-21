@@ -21,7 +21,7 @@ def conv2d(input_tensor, output_dim, k=5, s=2, stddev=.02, name='conv2d'):
         w = tf.get_variable('w', [k, k, input_tensor.get_shape()[-1], output_dim],
                                 initializer=tf.truncated_normal_initializer(stddev=stddev))
 
-        conv = tf.nn.conv2d(input_tensor, w, strides=[1, s, s, 1], padding='VALID')
+        conv = tf.nn.conv2d(input_tensor, w, strides=[1, s, s, 1], padding='SAME')
         b = tf.get_variable('b', [output_dim], initializer=tf.constant_initializer(.0))
         conv = tf.reshape(tf.nn.bias_add(conv, b), conv.get_shape())
 
