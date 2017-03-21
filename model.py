@@ -69,11 +69,18 @@ class DCGAN(object):
         tf.global_variables_initializer.run()
 
         x, y = load_dataset(self.img_size + [self.n_channel], cfg.path)
-        z = np.random.uniform(1, -1, size=(self.sample_size, self.z_dim))
+        z = np.random.uniform(-1, 1, size=(self.sample_size, self.z_dim))
 
         start_time = time.time()
         if cfg.checkpoint:
             checkpoint = self.load(cfg.checkpoint_dir)
+
+        for epoch in xrange(cfg.epochs):
+            n_batch = x.shape[0] // self.batch_size
+            for n in xrange(0, n_batch):
+                batch_input = x[n*self.batch_size:(n+1)*self.batch_size]
+                batch_label = y[n*self.batch_size:(n+1)*self.batch_size]
+                batch_z = np.random.uniform(-1, 1, size(self.batch_size, self.z_dim))
 
     def load(self, checkpoint_dir):
         ckpt = tf.train.get_checkpoint_state(checkpoint_dir)
