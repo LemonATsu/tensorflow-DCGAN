@@ -1,16 +1,17 @@
 import numpy as np
 import tensorflow as tf
+from numpy import genfromtxt
 from utils import *
 from tensorflow.contrib.layers import batch_norm, flatten
-from tensorflow.nn import sigmoid_cross_entropy_with_logits
 
 class DCGAN(object):
 
-    def __init__(self, sess, z_dim=100, batch_size=128, img_size=64, n_channel=1):
+    def __init__(self, sess, z_dim=100, batch_size=128, sample_size=64, img_size=64, n_channel=1):
 
         self.sess = sess
         self.z_dim = z_dim
         self.batch_size = batch_size
+        self.sample_size = sample_size
         self.img_size = [img_size, img_size] # assume that w = h
         self.n_channel = n_channel
 
@@ -26,11 +27,11 @@ class DCGAN(object):
         self.fake_input = tf.placeholder(tf.float32, [batch_size] + img_size + [self.n_channel],
                                             name='fake_sample')
 
-        self.G = generator(z, self.img_size, self.n_channel, name='G')
+        self.G = generator(z, self.img_size, self.n_channel, name='G', reuse=False)
 
         # use the same 'D' to discriminate generated data and real data
-        self.D_real = discriminator(self.real_input, self.img_size, self.n_channel, name='D')
-        self.D_fake = discriminator(self.G, self.img_size, self.n_channel, name='D')
+        self.D_real = discriminator(self.real_input, self.img_size, self.n_channel, name='D', reuse=False)
+        self.D_fake = discriminator(self.G, self.img_size, self.n_channel, name='D', reuse=True)
 
         # predicted label from discriminator
         D_real = tf.nn.sigmoid(self.D_real)
@@ -38,11 +39,11 @@ class DCGAN(object):
 
         # set up the loss function of discriminator
         D_loss_real = tf.reduce_mean(
-                sigmoid_cross_entropy_with_logits(self.D_real, tf.ones_like(D_real)))
+                tf.nn.sigmoid_cross_entropy_with_logits(self.D_real, tf.ones_like(D_real)))
         D_loss_fake = tf.reduce_mean(
-                sigmoid_cross_entropy_with_logits(self.D_fake, tf.zeros_like(D_fake)))
+                tf.nn.sigmoid_cross_entropy_with_logits(self.D_fake, tf.zeros_like(D_fake)))
         self.G_loss = tf.reduce_mean(
-                sigmoid_cross_entropy_with_logits(self.G, tf.ones_like(D_fake)))
+                tf.nn.sigmoid_cross_entropy_with_logits(self.G, tf.ones_like(D_fake)))
 
         self.D_loss = D_loss_real + D_loss_fake
 
@@ -60,14 +61,38 @@ class DCGAN(object):
 
     def train(self, cfg):
         # set up optimizer
-        g_opt = tf.train.AdamOptimizer(cfg.lr, beta1=cfg.beta1)
+        g_opt = tf.train.AdamOptimizer(cfg.lr, beta1=cfg.beta1)\
                     .minimize(self.G_loss, var_list=self.G_vars)
-        d_opt = tf.train.AdamOptimizer(cfg.lr, beta1=cfg.beta1)
+        d_opt = tf.train.AdamOptimizer(cfg.lr, beta1=cfg.beta1)\
                     .minimize(self.D_loss, var_list=self.D_vars)
 
         tf.global_variables_initializer.run()
 
+        x, y = load_dataset(self.img_size + [self.n_channel], cfg.path)
+        z = np.random.uniform(1, -1, size=(self.sample_size, self.z_dim))
 
+        start_time = time.time()
+        if cfg.checkpoint:
+            checkpoint = self.load(cfg.checkpoint_dir)
+
+    def load(self, checkpoint_dir):
+        ckpt = tf.train.get_checkpoint_state(checkpoint_dir)
+        if ckpt:
+            self.saver.restore(self.sess, checkpoint_dir+'/checkpoint')
+
+def load_dataset(img_size, path):
+    raw = genfromtxt(path, delimiter=',')
+    print(raw.shape)
+    raw = np.reshape(raw, [-1]+img_size)
+
+    X = raw / 255.
+    Y = np.ones((raw.shape[0],1))
+
+    seed = 666
+    np.random.seed(seed)
+    np.random.shuffle(X)
+
+    return X, Y
 
 
 def generator(z, img_size=[64, 64], n_channel=1, name='gen', reuse=True):
@@ -107,5 +132,8 @@ def discriminator(input_tensor, input_size=[64, 64], n_channel=1, output_size=1,
 
 if __name__ == '__main__':
     dummy = tf.placeholder(tf.float32, [10, 28, 28, 1])
-    d = discriminator(dummy, [28, 28])
-    g = generator(dummy)
+    d = discriminator(dummy, [28, 28], reuse=False)
+    X, Y = load_dataset([28, 28, 1], 'dataset/mnist.csv')
+    print(X.shape)
+    #g = generator(dummy)
+    print('done')
